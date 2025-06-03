@@ -39,7 +39,7 @@ func ConvertMetaToMovieNFO(m *model.MovieMeta) (*nfo.Movie, error) {
 		mv.Title = m.TitleTranslated
 	}
 	if len(m.PlotTranslated) > 0 {
-		mv.Plot += " [翻译:" + m.PlotTranslated + "]"
+		mv.Plot = m.PlotTranslated + " [原文:" + mv.Plot + "]"
 	}
 	if m.Poster != nil {
 		mv.Art.Poster = m.Poster.Name
