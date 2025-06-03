@@ -17,6 +17,10 @@ func (h *numberTitleHandler) Handle(ctx context.Context, fc *model.FileContext) 
 		return nil
 	}
 	fc.Meta.Title = fc.Number.GetNumberID() + " " + fc.Meta.Title
+	if len(fc.Meta.TitleTranslated) > 0 {
+		fc.Meta.TitleTranslated = fc.Number.GetNumberID() + " " + fc.Meta.TitleTranslated
+	}
+
 	return nil
 }
 
