@@ -6,6 +6,7 @@ import (
 	"yamdc/model"
 	"yamdc/number"
 
+	"dario.cat/mergo"
 	"github.com/xxxsen/common/logutil"
 	"go.uber.org/zap"
 )
@@ -31,7 +32,8 @@ func (g *group) Check(ctx context.Context) error {
 
 func performGroupSearch(ctx context.Context, number *number.Number, ss []ISearcher) (*model.MovieMeta, bool, error) {
 	var lastErr error
-	for _, s := range ss {
+	var meta_final model.MovieMeta
+	for i, s := range ss {
 		logutil.GetLogger(ctx).Debug("search number", zap.String("plugin", s.Name()))
 		meta, found, err := s.Search(ctx, number)
 		if err != nil {
@@ -41,7 +43,19 @@ func performGroupSearch(ctx context.Context, number *number.Number, ss []ISearch
 		if !found {
 			continue
 		}
+		if i == 0 {
+			meta_final = *meta
+		} else if err := mergo.Merge(&meta_final, *meta); err != nil {
+			lastErr = err
+			continue
+		}
+		if meta_final.Number == "" || meta_final.Title == "" || meta_final.Plot == "" || len(meta_final.Actors) == 0 {
+			continue
+		}
 		return meta, true, nil
+	}
+	if meta_final.Number != "" && meta_final.Title != "" {
+		return &meta_final, true, nil
 	}
 	if lastErr != nil {
 		return nil, false, lastErr

@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/antchfx/xpath v1.3.0 // indirect
 	github.com/cloudflare/circl v1.5.0 // indirect
