@@ -11,14 +11,16 @@ type numberTitleHandler struct {
 }
 
 func (h *numberTitleHandler) Handle(ctx context.Context, fc *model.FileContext) error {
-	title := number.GetCleanID(fc.Meta.Title)
 	num := number.GetCleanID(fc.Number.GetNumberID())
-	if strings.Contains(title, num) {
-		return nil
-	}
-	fc.Meta.Title = fc.Number.GetNumberID() + " " + fc.Meta.Title
+
+	title := number.GetCleanID(fc.Meta.Title)
+	title = strings.ReplaceAll(title, num, "")
+	fc.Meta.Title = fc.Number.GetNumberID() + " " + title
+
 	if len(fc.Meta.TitleTranslated) > 0 {
-		fc.Meta.TitleTranslated = fc.Number.GetNumberID() + " " + fc.Meta.TitleTranslated
+		titleTranslated := number.GetCleanID(fc.Meta.TitleTranslated)
+		titleTranslated = strings.ReplaceAll(titleTranslated, num, "")
+		fc.Meta.TitleTranslated = fc.Number.GetNumberID() + " " + titleTranslated
 	}
 
 	return nil
