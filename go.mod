@@ -3,6 +3,7 @@ module github.com/xxxsen/yamdc
 go 1.24.0
 
 require (
+	dario.cat/mergo v1.0.2
 	github.com/Conight/go-googletrans v0.2.4
 	github.com/antchfx/htmlquery v1.3.1
 	github.com/esimov/pigo v1.4.6
