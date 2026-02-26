@@ -3,9 +3,45 @@ yamdc
 
 由于原先的MovieDataCapture作者把工具闭源了, 只能自己写一个了。
 
+**默默用着就行，不需要宣传/推广，甚至也不需要star。**
+
 ## 使用方式
 
 推荐使用docker运行。 在非linux环境下运行, 部分特性无法启用。
+
+### 本地构建与运行
+
+使用 go install 安装：
+
+```bash
+go install github.com/xxxsen/yamdc/cmd/yamdc@latest
+```
+
+安装后可直接运行：
+
+```bash
+yamdc --config=./config.json
+yamdc run --config=./config.json
+```
+
+或使用源码构建：
+
+```bash
+make build
+```
+
+构建后可使用以下任意方式运行：
+
+```bash
+./yamdc --config=./config.json
+./yamdc run --config=./config.json
+```
+
+运行单元测试：
+
+```bash
+make test
+```
 
 ### docker运行
 
@@ -45,42 +81,6 @@ services:
 
 配置完成后, 使用`docker compose up` 进行刮削, 刮削完成的电影会被存储到`/data/scrape/savedir`下。
 
-**NOTE: 程序依赖go-face进行人脸识别, 以用于识别图片中的人脸并进行截图, 这个库需要有对应的模型文件, 程序启动的时候, 会检测模型文件是否存在, 如果不存在, 则会自动下载模型文件到`数据目录`下**
-
-### 手动编译
-
-程序编译需要go环境, 版本需要>=**1.21**, 请自行安装。
-
-#### 依赖相关
-
-linux下编译, 需要安装相关的依赖, 可以使用下面的命令进行安装
-
-```shell
-# Ubuntu
-sudo apt-get install libdlib-dev libblas-dev libatlas-base-dev liblapack-dev libjpeg-turbo8-dev gfortran
-# Debian
-sudo apt-get install libdlib-dev libblas-dev libatlas-base-dev liblapack-dev libjpeg62-turbo-dev gfortran
-# 其他
-# 我也不知道其他发行版对应的依赖名是啥...
-```
-
-**NOTE: 如果不是编译linux下的可执行文件则可以跳过安装依赖部分, 当然, 缺少依赖会导致后面的人脸识别特性无法开启。**
-
-#### 编译&运行
-
-```shell
-CGO_LDFLAGS="-static" CGO_ENABLED=1 go build -a -tags netgo -ldflags '-w' -o yamdc ./
-```
-
-编译完成后, 会在目录下生成对应的可执行文件(windows用户需要重命名下, 给可执行文件增加`.exe` 后缀。)
-
-之后执行下面命令运行即可。
-
-```shell
-# --config指定配置文件位置, 详细配置参考后续章节。
-./yamdc --config=./config.json
-```
-
 ## 基础配置
 
 ```json
@@ -116,6 +116,81 @@ CGO_LDFLAGS="-static" CGO_ENABLED=1 go build -a -tags netgo -ldflags '-w' -o yam
 |-LEAK|-|为封面添加特定水印| 
 |-VR|-|添加vr水印|
 |-UC, -U|-|添加破解水印|
+
+## 其他配置
+### 标签自动映射和父级标签自动补全
+功能：当当检测到某个标签（或其别名）时，自动完成两项核心操作：
+1. 将别名标签映射为标准标签
+2. 自动向上递归添加所有父级标准标签
+
+开启该功能：
+```json
+{
+  "scan_dir": "...",
+  "save_dir": "...",
+  "data_dir": "...",
+  "naming": "...",
+
+  "handler_config": {
+    "tag_mapper": {
+      "disabled": false,
+      "args": {
+        "file_path": "/path/to/your/tagconfig/tags.json"
+      }
+    }
+  }
+}
+```
+同时需要创建一个`tags.json`文件,tags.json 采用层级嵌套结构，核心字段说明如下：
+
+| 字段/配置形式            | 作用 | 示例|
+|--------------------|-|-|
+| `alias` 数组（仅对象内有效） |配置当前标准标签的别名，检测到别名时自动映射为当前标准标签|"cosplay" 的 _alias: ["cos", "角色扮演"]|
+| `children`         |定义子级标准标签，形成标签层级关系，子标签命中时自动携带父标签|"cosplay" 下嵌套 "原神" 对象|
+|`name`|定义当前标准标签的名称，用于匹配和映射|"cosplay" 是标准标签|
+
+参考配置示例：
+
+```json
+[
+  {
+    "name": "cosplay",
+    "alias": ["cos", "角色扮演"],
+    "children": [
+      {
+        "name": "原神",
+        "alias": ["Genshin", "⚪神"],
+        "children": [
+          {
+            "name": "芭芭拉·佩奇",
+            "alias": ["芭芭拉", "Barbara Pegg", "Barbara"]
+          },
+          {
+            "name": "莫娜",
+            "alias": ["Mona"]
+          }
+        ]
+      }
+    ]
+  }
+]
+
+```
+
+
+
+效果：
+
+| 输入标签             | 预期输出标签                      | 说明                                 |
+| ---------------- | --------------------------- | ---------------------------------- |
+| "cos"            | ["cosplay"]                 | 匹配 cosplay 的别名，映射后无父级，直接输出         |
+| "Genshin"        | ["cosplay", "原神"]           | 匹配原神的别名，自动补全父标签 cosplay            |
+| "Barbara"        | ["cosplay", "原神", "芭芭拉・佩奇"] | 匹配芭芭拉·佩奇的别名，补全父标签原神 + 祖父标签 cosplay |
+| ["角色扮演", "Mona"] | ["cosplay", "原神", "莫娜"]     | 多标签输入，去重后补全对应父级                    |
+| "莫娜"             | ["cosplay", "原神", "莫娜"]     | 直接输入标准子标签，补全所有父级                   |
+
+
+
 
 ## 其他
 
@@ -165,16 +240,32 @@ version: "3.1"
 - 标签提取: 使用当前已有的标题、简介额外提取5个标签
 - 文本翻译: 用于替换谷歌翻译
 
-开启的方式如下
+开启的方式如下:
 
 ```json
 {
     "scan_dir": "...",
     "ai_engine": {
-        "name": "gemini", //当前仅支持gemini, 不填则不开启
+        "name": "gemini", 
         "args": {
             "model": "gemini-2.0-flash", //按需填写, 仅测试2.0-flash, 其他的没测试
             "key": "fill with your key here" //从这里获取 https://aistudio.google.com/app/apikey
+        }
+    }
+    //other config...
+}
+```
+
+或者使用本地的 Ollama 服务：
+
+```json
+{
+    "scan_dir": "...",
+    "ai_engine": {
+        "name": "ollama",
+        "args": {
+            "host": "https://ollama.abc.com", //Ollama API 地址，替换成你自建的地址
+            "model": "gemma2:2b"        //替换为本地已有的模型名称
         }
     }
     //other config...
